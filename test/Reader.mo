@@ -3,8 +3,6 @@ import Nat8 "mo:base/Nat8";
 
 import IO "../src/IO";
 
-import D "mo:base/Debug";
-
 func range(n : Nat, m : Nat) : Iter.Iter<Nat8> {
     Iter.map(Iter.range(n, m), Nat8.fromNat);
 };
