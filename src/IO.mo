@@ -14,19 +14,19 @@ module {
     public let unexpectedEOF : Error = "unexpectedEOF";
     private let noErr : Error = "";
 
-    public type Reader = {
+    public type Reader<T> = {
         // Reads up to n bytes into p. It returns the number of bytes read (0 <= _ <= n) and any error encountered.
         // When an EOF error is encountered after successfully reading n > 0 bytes, it still returns the bytes and the number read.
-        read(n : Nat) : ([Nat8], Nat, Error);
+        read(n : Nat) : ([T], Nat, Error);
     };
 
     // Reads from r until it has read at least min bytes. Returns the number of bytes read and an error if fewer bytes were read.
-    public func readAtLeast(r : Reader, min : Nat, max : Nat) : ([Nat8], Nat, Error) {
+    public func readAtLeast<T>(r : Reader<T>, min : Nat, max : Nat) : ([T], Nat, Error) {
         if (max < min) { return ([], 0, "too short: max < min"); };
-        var bs : [Nat8] = []; var n = 0; var err = noErr;
+        var bs : [T] = []; var n = 0; var err = noErr;
         label l while (n < min and err == noErr) {
             let (b, nn, e) = r.read(max - bs.size());
-            bs := Array.append<Nat8>(bs, b);
+            bs := Array.append<T>(bs, b);
             n += nn; err := e;
             if (bs.size() == max) { break l; };
         };
@@ -41,13 +41,13 @@ module {
     };
 
     // Reads exactly n bytes from r.
-    public func readFull(r : Reader, n : Nat) : ([Nat8], Nat, Error) {
+    public func readFull<T>(r : Reader<T>, n : Nat) : ([T], Nat, Error) {
         readAtLeast(r, n, n);
     };
 
     // Reads from r until an EOF error and returns the data it read.
-    public func readAll(r : Reader) : ([Nat8], Nat, Error) {
-        var bs : [Nat8] = []; var n = 512;
+    public func readAll<T>(r : Reader<T>) : ([T], Nat, Error) {
+        var bs : [T] = []; var n = 512;
         loop {
             let (b, nn, e) = r.read(n);
             bs := Array.append(bs, b);
@@ -73,30 +73,27 @@ module {
     };
 
     // Contructs a reader from i.
-    public func fromIter(i : Iter.Iter<Nat8>) : Reader = object {
+    public func fromIter<T>(i : Iter.Iter<T>) : Reader<T> = object {
         let arr = Iter.toArray(i);
-
         var size = arr.size();
         let iter = Iter.fromArray(arr);
-
-        public func read(n : Nat) : ([Nat8], Nat, Error) {
+        public func read(n : Nat) : ([T], Nat, Error) {
             let s = min(n, size);
-            let b = Array.init<Nat8>(s, 0x00);
+            var b : [T] = [];
             for (j in Iter.range(0, s-1)) {
                 switch (iter.next()) {
                     case (null) {
                         // This should never happen (unreachable?).
-                        return (take(Array.freeze(b), j), j, "could not get value");
+                        return (take(b, j), j, "could not get value");
                     };
                     case (? v) {
-                        b[j] := v;
+                        b := Array.append(b, [v]);
                         size -= 1;
                     };
                 };
             };
-            let bs = Array.freeze(b);
-            if (s < n) { return (bs, s, EOF); };
-            (bs, n, noErr);
+            if (s < n) { return (b, s, EOF); };
+            (b, n, noErr);
         };
     };
 
