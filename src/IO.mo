@@ -72,7 +72,7 @@ module {
         w.write(Blob.toArray(Text.encodeUtf8(t)));
     };
 
-    // Contructs a reader fron the given iter.
+    // Contructs a reader from i.
     public func fromIter(i : Iter.Iter<Nat8>) : Reader = object {
         let arr = Iter.toArray(i);
 
