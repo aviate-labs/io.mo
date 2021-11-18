@@ -1,9 +1,16 @@
 import Array "mo:base/Array";
 import Blob "mo:base/Blob";
 import Iter "mo:base/Iter";
+import Result "mo:base/Result";
 import Text "mo:base/Text";
 
 module {
+    public type Result<T> = {
+        #ok  : T;
+        #eof : T;
+        #err : (T, Error);
+    };
+
     public type Error = Text;
     public func errorNotNull(e : Error) : Bool {
         e != "";
@@ -17,74 +24,86 @@ module {
     public type Reader<T> = {
         // Reads up to n bytes into a new array. It returns the bytes read (0 <= _ <= n) and any error encountered.
         // When an EOF error is encountered after successfully reading n > 0 bytes, it still returns the bytes and the number read.
-        read(n : Nat) : ([T], Error);
+        read(n : Nat) : Result<[T]>;
     };
 
-    // Reads from r until it has read at least min bytes. Returns the number of bytes read and an error if fewer bytes were read.
-    public func readAtLeast<T>(r : Reader<T>, min : Nat, max : Nat) : ([T], Error) {
-        if (max < min) { return ([], "too short: max < min"); };
-        var bs : [T] = []; var n = 0; var err = noErr;
-        label l while (n < min and err == noErr) {
-            let (b, e) = r.read(max - bs.size());
-            bs := Array.append<T>(bs, b);
-            n += b.size(); err := e;
-            if (bs.size() == max) { break l; };
+    // Reads from r until it has read at least min bytes. Returns an error if fewer bytes were read.
+    public func readAtLeast<T>(r : Reader<T>, min : Nat, max : Nat) : Result<[T]> {
+        if (max < min) return #err([], "too short: max < min");
+
+        var bs : [T] = [];
+        var n        = 0;
+        label l while (n < min) {
+            switch (r.read(max - bs.size())) {
+                case (#ok(b)) {
+                    bs := Array.append<T>(bs, b);
+                    n  += b.size();
+                    if (bs.size() == max) break l;
+                };
+                case (#err(e)) {
+                    return #err(e);
+                };
+                case (#eof(b)) {
+                    bs := Array.append<T>(bs, b);
+                    n  += b.size();
+                    if (0 < n) return #err(bs, unexpectedEOF);
+                    return #eof(bs);
+                };
+            };
         };
-        if (min <= n) {
-            // Even if there was an error, at least n bytes were read.
-            err := noErr;
-        } else if (0 < n and err == EOF) {
-            // No enough bytes.
-            err := unexpectedEOF;
-        };
-        (bs, err);
+        #ok(bs);
     };
 
     // Reads exactly n bytes from r.
-    public func readFull<T>(r : Reader<T>, n : Nat) : ([T], Error) {
+    public func readFull<T>(r : Reader<T>, n : Nat) : Result<[T]> {
         readAtLeast(r, n, n);
     };
 
     // Reads from r until an EOF error and returns the data it read.
-    public func readAll<T>(r : Reader<T>) : ([T], Error) {
-        var bs : [T] = []; var n = 512;
+    public func readAll<T>(r : Reader<T>) : Result<[T]> {
+        var bs : [T] = [];
+        var n        = 512;
         loop {
-            let (b, e) = r.read(n);
-            bs := Array.append(bs, b);
-            n += b.size();
-            if (errorNotNull(e)) {
-                if (e == EOF) {
-                    return (bs, noErr);
+            switch (r.read(n)) {
+                case (#ok(b)) {
+                    bs := Array.append(bs, b);
+                    n += b.size();
                 };
-                return (bs, e);
+                case (#eof(b)) {
+                    return #ok(Array.append(bs, b));
+                };
+                case (#err(e)) {
+                    return #err(e);
+                };
             };
         };
+
     };
 
     public type Writer<T> = {
         // Writes len(b) bytes from b to the underlying data stream.
-        // It returns the number of bytes written from b (0 <= _ <= len(b)) and any error encountered.
-        write(b : [T]) : (Nat, Error);
+        // It returns the number of bytes written from b (0 <= _ <= len(b)) or any error encountered.
+        write(b : [T]) : Result.Result<Nat, Error>;
     };
 
     // Writes the contents of the string s to w.
-    public func writeText(w : Writer<Nat8>, t : Text) : (Nat, Error) {
+    public func writeText(w : Writer<Nat8>, t : Text) : Result.Result<Nat, Error> {
         w.write(Blob.toArray(Text.encodeUtf8(t)));
     };
 
     // Contructs a reader from i.
     public func fromIter<T>(i : Iter.Iter<T>) : Reader<T> = object {
-        let arr = Iter.toArray(i);
+        let arr  = Iter.toArray(i);
         var size = arr.size();
         let iter = Iter.fromArray(arr);
-        public func read(n : Nat) : ([T], Error) {
+        public func read(n : Nat) : Result<[T]> {
             let s = min(n, size);
             var b : [T] = [];
             for (j in Iter.range(0, s-1)) {
                 switch (iter.next()) {
                     case (null) {
                         // This should never happen (unreachable?).
-                        return (take(b, j), "could not get value");
+                        return #err([], "from iter: could not get value");
                     };
                     case (? v) {
                         b := Array.append(b, [v]);
@@ -92,20 +111,12 @@ module {
                     };
                 };
             };
-            if (s < n) { return (b, EOF); };
-            (b, noErr);
+            if (s < n) return #eof(b);
+            #ok(b);
         };
     };
 
     private func min(a : Nat, b : Nat) : Nat {
         if (a < b) { return a; }; b;
-    };
-
-    private func take<T>(xs : [T], n : Nat) : [T] {
-        if (n == 0)         { return []; };
-        if (xs.size() <= n) { return xs;  };
-        let b = Array.init<T>(n, xs[0]);
-        for (i in b.keys()) { b[i] := xs[i]; };
-        Array.freeze(b);
     };
 };
