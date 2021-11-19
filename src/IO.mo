@@ -6,8 +6,12 @@ import Text "mo:base/Text";
 
 module {
     public type Result<T> = {
+        // Read was successful.
         #ok  : T;
+        // Read was successful, but encoutered an EOF.
+        // No more data is available in the reader.
         #eof : T;
+        // Read was unsuccessful. E.g. insufficient/no more data available.
         #err : (T, Error);
     };
 
@@ -19,7 +23,6 @@ module {
     // EOF is the error returned by Read when no more input is available.
     public let EOF : Error = "EOF";
     public let unexpectedEOF : Error = "unexpectedEOF";
-    private let noErr : Error = "";
 
     public type Reader<T> = {
         // Reads up to n bytes into a new array. It returns the bytes read (0 <= _ <= n) and any error encountered.
@@ -103,7 +106,7 @@ module {
                 switch (iter.next()) {
                     case (null) {
                         // This should never happen (unreachable?).
-                        return #err([], "from iter: could not get value");
+                        return #err(b, unexpectedEOF);
                     };
                     case (? v) {
                         b := Array.append(b, [v]);
