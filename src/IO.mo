@@ -102,7 +102,7 @@ module {
                 switch (iter.next()) {
                     case (null) {
                         // This should never happen (unreachable?).
-                        return #err(b, unexpectedEOF);
+                        return #err(bs.toArray(), unexpectedEOF);
                     };
                     case (? v) {
                         bs.add(v);
