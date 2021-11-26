@@ -1,4 +1,5 @@
 import Array "mo:base/Array";
+import Buffer "mo:base/Buffer";
 import Blob "mo:base/Blob";
 import Iter "mo:base/Iter";
 import Result "mo:base/Result";
@@ -34,27 +35,24 @@ module {
     public func readAtLeast<T>(r : Reader<T>, min : Nat, max : Nat) : Result<[T]> {
         if (max < min) return #err([], "too short: max < min");
 
-        var bs : [T] = [];
-        var n        = 0;
-        label l while (n < min) {
+        var bs = Buffer.Buffer<T>(max);
+        label l while (bs.size() < min) {
             switch (r.read(max - bs.size())) {
                 case (#ok(b)) {
-                    bs := Array.append<T>(bs, b);
-                    n  += b.size();
+                    for (v in b.vals()) bs.add(v);
                     if (bs.size() == max) break l;
                 };
                 case (#err(e)) {
                     return #err(e);
                 };
                 case (#eof(b)) {
-                    bs := Array.append<T>(bs, b);
-                    n  += b.size();
-                    if (0 < n) return #err(bs, unexpectedEOF);
-                    return #eof(bs);
+                    for (v in b.vals()) bs.add(v);
+                    if (0 < bs.size()) return #err(bs.toArray(), unexpectedEOF);
+                    return #eof(bs.toArray());
                 };
             };
         };
-        #ok(bs);
+        #ok(bs.toArray());
     };
 
     // Reads exactly n bytes from r.
@@ -64,23 +62,21 @@ module {
 
     // Reads from r until an EOF error and returns the data it read.
     public func readAll<T>(r : Reader<T>) : Result<[T]> {
-        var bs : [T] = [];
-        var n        = 512;
+        var bs = Buffer.Buffer<T>(1);
         loop {
-            switch (r.read(n)) {
+            switch (r.read(512)) {
                 case (#ok(b)) {
-                    bs := Array.append(bs, b);
-                    n += b.size();
+                    for (v in b.vals()) bs.add(v);
                 };
                 case (#eof(b)) {
-                    return #ok(Array.append(bs, b));
+                    for (v in b.vals()) bs.add(v);
+                    return #ok(bs.toArray());
                 };
                 case (#err(e)) {
                     return #err(e);
                 };
             };
         };
-
     };
 
     public type Writer<T> = {
@@ -101,7 +97,7 @@ module {
         let iter = Iter.fromArray(arr);
         public func read(n : Nat) : Result<[T]> {
             let s = min(n, size);
-            var b : [T] = [];
+            var bs = Buffer.Buffer<T>(s);
             for (j in Iter.range(0, s-1)) {
                 switch (iter.next()) {
                     case (null) {
@@ -109,13 +105,13 @@ module {
                         return #err(b, unexpectedEOF);
                     };
                     case (? v) {
-                        b := Array.append(b, [v]);
+                        bs.add(v);
                         size -= 1;
                     };
                 };
             };
-            if (s < n) return #eof(b);
-            #ok(b);
+            if (s < n) return #eof(bs.toArray());
+            #ok(bs.toArray());
         };
     };
 
