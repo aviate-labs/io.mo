@@ -1,0 +1,10 @@
+{
+  "defaults": {
+    "build": {
+      "args": "",
+      "packtool": "vessel sources"
+    }
+  },
+  "dfx": "0.12.0",
+  "version": 1
+}
