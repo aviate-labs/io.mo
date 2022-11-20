@@ -47,12 +47,12 @@ module {
                 };
                 case (#eof(b)) {
                     for (v in b.vals()) bs.add(v);
-                    if (0 < bs.size()) return #err(bs.toArray(), unexpectedEOF);
-                    return #eof(bs.toArray());
+                    if (0 < bs.size()) return #err(Buffer.toArray(bs), unexpectedEOF);
+                    return #eof(Buffer.toArray(bs));
                 };
             };
         };
-        #ok(bs.toArray());
+        #ok(Buffer.toArray(bs));
     };
 
     // Reads exactly n bytes from r.
@@ -70,7 +70,7 @@ module {
                 };
                 case (#eof(b)) {
                     for (v in b.vals()) bs.add(v);
-                    return #ok(bs.toArray());
+                    return #ok(Buffer.toArray(bs));
                 };
                 case (#err(e)) {
                     return #err(e);
@@ -102,7 +102,7 @@ module {
                 switch (iter.next()) {
                     case (null) {
                         // This should never happen (unreachable?).
-                        return #err(bs.toArray(), unexpectedEOF);
+                        return #err(Buffer.toArray(bs), unexpectedEOF);
                     };
                     case (? v) {
                         bs.add(v);
@@ -110,8 +110,8 @@ module {
                     };
                 };
             };
-            if (s < n) return #eof(bs.toArray());
-            #ok(bs.toArray());
+            if (s < n) return #eof(Buffer.toArray(bs));
+            #ok(Buffer.toArray(bs));
         };
     };
 
