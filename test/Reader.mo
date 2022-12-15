@@ -1,5 +1,5 @@
-import Iter "mo:base/Iter";
-import Nat8 "mo:base/Nat8";
+import Iter "mo:base-0.7.3/Iter";
+import Nat8 "mo:base-0.7.3/Nat8";
 
 import IO "../src/IO";
 

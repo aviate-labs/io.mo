@@ -1,15 +1,15 @@
-import Array "mo:base/Array";
-import Buffer "mo:base/Buffer";
-import Blob "mo:base/Blob";
-import Iter "mo:base/Iter";
-import Result "mo:base/Result";
-import Text "mo:base/Text";
+import Array "mo:base-0.7.3/Array";
+import Buffer "mo:base-0.7.3/Buffer";
+import Blob "mo:base-0.7.3/Blob";
+import Iter "mo:base-0.7.3/Iter";
+import Result "mo:base-0.7.3/Result";
+import Text "mo:base-0.7.3/Text";
 
 module {
     public type Result<T> = {
         // Read was successful.
         #ok  : T;
-        // Read was successful, but encoutered an EOF.
+        // Read was successful, but encountered an EOF.
         // No more data is available in the reader.
         #eof : T;
         // Read was unsuccessful. E.g. insufficient/no more data available.
@@ -47,12 +47,12 @@ module {
                 };
                 case (#eof(b)) {
                     for (v in b.vals()) bs.add(v);
-                    if (0 < bs.size()) return #err(bs.toArray(), unexpectedEOF);
-                    return #eof(bs.toArray());
+                    if (0 < bs.size()) return #err(Buffer.toArray(bs), unexpectedEOF);
+                    return #eof(Buffer.toArray(bs));
                 };
             };
         };
-        #ok(bs.toArray());
+        #ok(Buffer.toArray(bs));
     };
 
     // Reads exactly n bytes from r.
@@ -70,7 +70,7 @@ module {
                 };
                 case (#eof(b)) {
                     for (v in b.vals()) bs.add(v);
-                    return #ok(bs.toArray());
+                    return #ok(Buffer.toArray(bs));
                 };
                 case (#err(e)) {
                     return #err(e);
@@ -90,7 +90,7 @@ module {
         w.write(Blob.toArray(Text.encodeUtf8(t)));
     };
 
-    // Contructs a reader from i.
+    // Constructs a reader from i.
     public func fromIter<T>(i : Iter.Iter<T>) : Reader<T> = object {
         let arr  = Iter.toArray(i);
         var size = arr.size();
@@ -102,7 +102,7 @@ module {
                 switch (iter.next()) {
                     case (null) {
                         // This should never happen (unreachable?).
-                        return #err(bs.toArray(), unexpectedEOF);
+                        return #err(Buffer.toArray(bs), unexpectedEOF);
                     };
                     case (? v) {
                         bs.add(v);
@@ -110,8 +110,8 @@ module {
                     };
                 };
             };
-            if (s < n) return #eof(bs.toArray());
-            #ok(bs.toArray());
+            if (s < n) return #eof(Buffer.toArray(bs));
+            #ok(Buffer.toArray(bs));
         };
     };
 

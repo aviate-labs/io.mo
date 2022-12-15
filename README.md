@@ -12,5 +12,4 @@ switch (IO.readAll(reader)) {
     case (#ok(bs)) // [...].size() == 54.
     ...
 };
-
 ```
